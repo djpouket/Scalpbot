@@ -20,6 +20,239 @@ from plotly.subplots import make_subplots
 
 st.set_page_config(page_title="ScalpBot Pro", layout="wide", page_icon="⚡")
 
+QT_BG = "#080b0f"
+QT_SURFACE = "#0c1118"
+QT_PANEL = "#10151d"
+QT_PANEL_SOFT = "#141a23"
+QT_BORDER = "#26303b"
+QT_TEXT = "#e6edf3"
+QT_MUTED = "#8b98a8"
+QT_GREEN = "#20e3a2"
+QT_CYAN = "#2dd4ff"
+QT_AMBER = "#f2b84b"
+QT_RED = "#ff5c5c"
+
+def inject_qterminal_style():
+    st.markdown(
+        f"""
+        <style>
+        html {{
+            scroll-behavior: smooth;
+        }}
+        :root {{
+            --qt-bg: {QT_BG};
+            --qt-surface: {QT_SURFACE};
+            --qt-panel: {QT_PANEL};
+            --qt-panel-soft: {QT_PANEL_SOFT};
+            --qt-border: {QT_BORDER};
+            --qt-text: {QT_TEXT};
+            --qt-muted: {QT_MUTED};
+            --qt-green: {QT_GREEN};
+            --qt-cyan: {QT_CYAN};
+            --qt-amber: {QT_AMBER};
+            --qt-red: {QT_RED};
+        }}
+        .stApp {{
+            background:
+                linear-gradient(rgba(45, 212, 255, 0.035) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(45, 212, 255, 0.026) 1px, transparent 1px),
+                linear-gradient(180deg, #080b0f 0%, #07090d 100%);
+            background-size: 34px 34px, 34px 34px, auto;
+            color: var(--qt-text);
+        }}
+        .block-container {{
+            max-width: 1580px;
+            padding-top: 1.1rem;
+            padding-bottom: 2.2rem;
+            animation: qtFadeIn 260ms ease-out;
+        }}
+        [data-testid="stHeader"] {{
+            background: rgba(8, 11, 15, 0.94);
+            border-bottom: 1px solid rgba(38, 48, 59, 0.88);
+        }}
+        [data-testid="stToolbar"] {{
+            color: var(--qt-muted);
+        }}
+        [data-testid="stToolbar"] button {{
+            color: var(--qt-muted);
+        }}
+        @keyframes qtFadeIn {{
+            from {{ opacity: 0; transform: translateY(6px); }}
+            to {{ opacity: 1; transform: translateY(0); }}
+        }}
+        h1, h2, h3, p, label, span {{
+            letter-spacing: 0;
+        }}
+        .qt-page-header {{
+            position: relative;
+            border: 1px solid rgba(45, 212, 255, 0.22);
+            border-radius: 8px;
+            background:
+                linear-gradient(90deg, rgba(32, 227, 162, 0.10), transparent 28%),
+                linear-gradient(135deg, rgba(11, 16, 22, 0.98), rgba(13, 19, 28, 0.92));
+            padding: 20px 20px 18px 20px;
+            margin: -2px 0 14px 0;
+            overflow: hidden;
+            box-shadow: 0 18px 42px rgba(0, 0, 0, 0.20), inset 0 1px 0 rgba(255, 255, 255, 0.035);
+        }}
+        .qt-page-header::after {{
+            content: "";
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--qt-green), var(--qt-cyan), transparent);
+            opacity: 0.88;
+        }}
+        .qt-kicker {{
+            color: var(--qt-cyan);
+            font-size: 0.76rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 8px;
+        }}
+        .qt-page-header h1 {{
+            margin: 0;
+            color: var(--qt-text);
+            font-size: clamp(2rem, 2.8vw, 3.1rem);
+            line-height: 1.02;
+            font-weight: 780;
+        }}
+        .qt-page-header p {{
+            color: var(--qt-muted);
+            margin: 8px 0 0 0;
+            max-width: 880px;
+            font-size: 0.96rem;
+            line-height: 1.48;
+        }}
+        .qt-status-row {{
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 14px;
+        }}
+        .qt-pill {{
+            display: inline-flex;
+            align-items: center;
+            border: 1px solid rgba(45, 212, 255, 0.30);
+            border-radius: 999px;
+            padding: 7px 10px;
+            color: var(--qt-cyan);
+            background: rgba(45, 212, 255, 0.08);
+            font-size: 0.78rem;
+            white-space: nowrap;
+        }}
+        .qt-pill.ok {{
+            color: var(--qt-green);
+            border-color: rgba(32, 227, 162, 0.38);
+            background: rgba(32, 227, 162, 0.08);
+        }}
+        .qt-pill.warn {{
+            color: var(--qt-amber);
+            border-color: rgba(242, 184, 75, 0.38);
+            background: rgba(242, 184, 75, 0.08);
+        }}
+        .qt-control-band {{
+            border: 1px solid var(--qt-border);
+            border-radius: 8px;
+            background:
+                linear-gradient(145deg, rgba(45, 212, 255, 0.035), transparent 36%),
+                rgba(15, 21, 31, 0.92);
+            padding: 14px 14px 6px 14px;
+            margin-bottom: 14px;
+            box-shadow: 0 14px 36px rgba(0, 0, 0, 0.18);
+        }}
+        div[data-testid="stVerticalBlockBorderWrapper"],
+        div[data-testid="stDataFrame"], .stPlotlyChart {{
+            border: 1px solid var(--qt-border);
+            border-radius: 8px;
+            background: var(--qt-panel);
+            transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+        }}
+        .stPlotlyChart {{
+            padding: 8px;
+            box-shadow: 0 14px 32px rgba(0, 0, 0, 0.16);
+        }}
+        div[data-testid="stDataFrame"]:hover, .stPlotlyChart:hover {{
+            border-color: rgba(45, 212, 255, 0.40);
+            background: var(--qt-panel-soft);
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.20);
+        }}
+        [data-testid="stExpander"] {{
+            border: 1px solid var(--qt-border);
+            border-radius: 8px;
+            background:
+                linear-gradient(135deg, rgba(45, 212, 255, 0.035), transparent 42%),
+                var(--qt-panel);
+        }}
+        [data-testid="stExpander"]:hover {{
+            border-color: rgba(45, 212, 255, 0.34);
+        }}
+        [data-testid="stAlert"] {{
+            border-radius: 8px;
+            border: 1px solid rgba(242, 184, 75, 0.35);
+            background: rgba(16, 21, 29, 0.82);
+        }}
+        button, [role="button"] {{
+            border-radius: 8px !important;
+            transition: transform 140ms ease, border-color 140ms ease, background 140ms ease, color 140ms ease;
+        }}
+        button:hover, [role="button"]:hover {{
+            transform: translateY(-1px);
+        }}
+        [data-testid="baseButton-primary"],
+        [data-testid="stBaseButton-primary"],
+        button[kind="primary"] {{
+            background: var(--qt-green);
+            border-color: var(--qt-green);
+            color: #06100c;
+        }}
+        [data-testid="stBaseButton-secondary"],
+        button[kind="secondary"] {{
+            border-color: rgba(45, 212, 255, 0.28);
+            background: rgba(12, 17, 24, 0.82);
+            color: var(--qt-text);
+        }}
+        [data-testid="stBaseButton-secondary"]:hover,
+        button[kind="secondary"]:hover {{
+            border-color: rgba(32, 227, 162, 0.48);
+            background: rgba(32, 227, 162, 0.08);
+            color: var(--qt-green);
+        }}
+        [data-testid="stSlider"] [data-baseweb="slider"] > div {{
+            color: var(--qt-green);
+        }}
+        [data-testid="stToggle"] label {{
+            color: var(--qt-text);
+        }}
+        hr {{
+            border-color: var(--qt-border);
+        }}
+        @media (max-width: 720px) {{
+            .block-container {{
+                padding-left: 0.8rem;
+                padding-right: 0.8rem;
+                padding-top: 0.7rem;
+            }}
+            .qt-page-header {{
+                padding: 16px;
+            }}
+            .qt-page-header h1 {{
+                font-size: 1.8rem;
+            }}
+            .stPlotlyChart {{
+                padding: 4px;
+            }}
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+inject_qterminal_style()
+
 # ── Supabase optionnel ───────────────────────────────────────
 try:
     from supabase import create_client
@@ -512,16 +745,16 @@ def build_chart(sym):
     fig.add_trace(go.Candlestick(
         x=df5["Date"], open=df5["Open"], high=df5["High"],
         low=df5["Low"], close=df5["Close"],
-        increasing_line_color="#00c864", decreasing_line_color="#dc3232",
-        increasing_fillcolor="#00c864", decreasing_fillcolor="#dc3232",
+        increasing_line_color=QT_GREEN, decreasing_line_color=QT_RED,
+        increasing_fillcolor=QT_GREEN, decreasing_fillcolor=QT_RED,
         line=dict(width=1), showlegend=False
     ), row=1, col=1)
 
     for y, color, label, dash in [
-        (df5["EMA9"],  "#f0c040", "EMA9",  "solid"),
-        (df5["EMA20"], "#a060ff", "EMA20", "solid"),
-        (df5["EMA50"], "#ff8040", "EMA50", "solid"),
-        (df5["VWAP"],  "#00b4ff", "VWAP",  "dot"),
+        (df5["EMA9"],  QT_AMBER, "EMA9",  "solid"),
+        (df5["EMA20"], QT_CYAN,  "EMA20", "solid"),
+        (df5["EMA50"], QT_MUTED, "EMA50", "solid"),
+        (df5["VWAP"],  QT_GREEN, "VWAP",  "dot"),
     ]:
         fig.add_trace(go.Scatter(x=df5["Date"], y=y, mode="lines",
                                  line=dict(color=color, width=1, dash=dash),
@@ -530,16 +763,16 @@ def build_chart(sym):
     for fvg in fvg5:
         fig.add_hrect(
             y0=fvg["bottom"], y1=fvg["top"],
-            fillcolor="rgba(0,200,100,0.12)" if fvg["type"] == "bullish" else "rgba(220,50,50,0.12)",
+            fillcolor="rgba(32,227,162,0.12)" if fvg["type"] == "bullish" else "rgba(255,92,92,0.12)",
             line_width=0, row=1, col=1
         )
     for ob in obs5:
-        col_f  = "rgba(255,165,0,0.18)"  if ob["type"] == "bullish" else "rgba(200,0,200,0.18)"
-        col_b  = "rgba(255,165,0,0.7)"   if ob["type"] == "bullish" else "rgba(200,0,200,0.7)"
+        col_f  = "rgba(242,184,75,0.16)" if ob["type"] == "bullish" else "rgba(45,212,255,0.12)"
+        col_b  = "rgba(242,184,75,0.62)" if ob["type"] == "bullish" else "rgba(45,212,255,0.54)"
         fig.add_hrect(y0=ob["bottom"], y1=ob["top"],
                       fillcolor=col_f, line=dict(color=col_b, width=1), row=1, col=1)
     for ev in ev5:
-        col_ev = "#00ff88" if ev["direction"] == "bullish" else "#ff4444"
+        col_ev = QT_GREEN if ev["direction"] == "bullish" else QT_RED
         fig.add_hline(y=ev["price"], line_color=col_ev, line_dash="dash",
                       line_width=1, row=1, col=1,
                       annotation_text=ev["type"],
@@ -549,25 +782,25 @@ def build_chart(sym):
     fig.add_trace(go.Candlestick(
         x=df1["Date"], open=df1["Open"], high=df1["High"],
         low=df1["Low"], close=df1["Close"],
-        increasing_line_color="#00c864", decreasing_line_color="#dc3232",
-        increasing_fillcolor="#00c864", decreasing_fillcolor="#dc3232",
+        increasing_line_color=QT_GREEN, decreasing_line_color=QT_RED,
+        increasing_fillcolor=QT_GREEN, decreasing_fillcolor=QT_RED,
         line=dict(width=1), showlegend=False
     ), row=2, col=1)
     fig.add_trace(go.Scatter(x=df1["Date"], y=df1["EMA9"], mode="lines",
-                             line=dict(color="#f0c040", width=1), showlegend=False), row=2, col=1)
+                             line=dict(color=QT_AMBER, width=1), showlegend=False), row=2, col=1)
     fig.add_trace(go.Scatter(x=df1["Date"], y=df1["VWAP"], mode="lines",
-                             line=dict(color="#00b4ff", width=1, dash="dot"), showlegend=False), row=2, col=1)
+                             line=dict(color=QT_GREEN, width=1, dash="dot"), showlegend=False), row=2, col=1)
     for ob in detecter_order_blocks(df1)[-2:]:
         fig.add_hrect(
             y0=ob["bottom"], y1=ob["top"],
-            fillcolor="rgba(255,165,0,0.15)" if ob["type"] == "bullish" else "rgba(200,0,200,0.15)",
+            fillcolor="rgba(242,184,75,0.14)" if ob["type"] == "bullish" else "rgba(45,212,255,0.12)",
             line_width=0, row=2, col=1
         )
 
     # ── Volume ───────────────────────────────────────────────
     vol_colors = [
-        "rgba(0,200,100,0.6)" if df1["Close"].iloc[k] >= df1["Open"].iloc[k]
-        else "rgba(220,50,50,0.6)"
+        "rgba(32,227,162,0.62)" if df1["Close"].iloc[k] >= df1["Open"].iloc[k]
+        else "rgba(255,92,92,0.58)"
         for k in range(len(df1))
     ]
     fig.add_trace(go.Bar(x=df1["Date"], y=df1["Volume"],
@@ -575,29 +808,30 @@ def build_chart(sym):
 
     # ── Layout ───────────────────────────────────────────────
     score, _, _ = score_confluence(sym)
-    score_color = "#00ff88" if score >= 7 else "#f0c040" if score >= 5 else "#888"
+    score_color = QT_GREEN if score >= 7 else QT_AMBER if score >= 5 else QT_MUTED
     last_close  = df1["Close"].iloc[-1]
     vwap_val    = df1["VWAP"].iloc[-1]
 
     fig.update_layout(
         height=480, template="plotly_dark",
-        paper_bgcolor="#0e1117", plot_bgcolor="#0e1117",
-        margin=dict(l=4, r=4, t=36, b=4), showlegend=False,
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor=QT_PANEL,
+        margin=dict(l=4, r=4, t=38, b=4), showlegend=False,
+        font=dict(color=QT_TEXT, family="Inter, Segoe UI, sans-serif"),
         title=dict(
             text=(
                 f"<b>{sym}</b>  "
-                f"<span style='color:#aaa;font-size:10px'>{last_close:.2f}$  VWAP:{vwap_val:.2f}</span>  "
+                f"<span style='color:{QT_MUTED};font-size:10px'>{last_close:.2f}$  VWAP:{vwap_val:.2f}</span>  "
                 f"<span style='color:{score_color};font-size:11px'>● Score {score}/10</span>"
             ),
-            font=dict(size=13, color="white"), x=0.01
+            font=dict(size=13, color=QT_TEXT), x=0.01
         )
     )
     for row in [1, 2, 3]:
-        fig.update_xaxes(showgrid=False, tickfont=dict(size=8, color="#555"),
+        fig.update_xaxes(showgrid=False, zeroline=False, tickfont=dict(size=8, color=QT_MUTED),
                          tickformat="%H:%M", rangeslider_visible=False, row=row, col=1)
     for row in [1, 2]:
-        fig.update_yaxes(showgrid=True, gridcolor="rgba(255,255,255,0.04)",
-                         tickfont=dict(size=8, color="#aaa"), side="right", row=row, col=1)
+        fig.update_yaxes(showgrid=True, gridcolor="rgba(45,212,255,0.055)", zeroline=False,
+                         tickfont=dict(size=8, color=QT_MUTED), side="right", row=row, col=1)
     fig.update_yaxes(showticklabels=False, row=3, col=1)
     fig.update_annotations(font_size=9)
     return fig
@@ -761,7 +995,24 @@ def start_background_threads():
 # ============================================================
 start_background_threads()
 
-st.title("⚡ ScalpBot Pro — Radar SMC")
+st.markdown(
+    f"""
+    <section class="qt-page-header">
+        <div class="qt-kicker">Live market terminal / SMC radar</div>
+        <h1>ScalpBot Pro</h1>
+        <p>
+            Radar multi-timeframe pour signaux SMC, confluences EMA/VWAP, zones OB/FVG
+            et execution Alpaca paper avec garde-fous de risque.
+        </p>
+        <div class="qt-status-row">
+            <span class="qt-pill ok">Paper trading</span>
+            <span class="qt-pill">{len(SYMBOLES)} symboles surveilles</span>
+            <span class="qt-pill warn">Auto-trade verrouillable</span>
+        </div>
+    </section>
+    """,
+    unsafe_allow_html=True,
+)
 
 # ── Auto-Trade ───────────────────────────────────────────────
 with st.container():

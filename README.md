@@ -14,6 +14,7 @@
 - Garde-fous sur la taille d'ordre : risque, notional et quantité maximum
 - Etat partagé protégé par lock réentrant
 - Correction de la variable `prix` inexistante dans le calcul ATR fallback
+- Style graphique inspiré de Q-terminal : fond sombre quadrillé, panneaux fins, accents vert/cyan/ambre
 - VWAP reset quotidien par session NY
 - Lookback swing réduit (n=2 vs n=3)
 - BOS confirmation 2 bougies
