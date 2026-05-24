@@ -15,6 +15,7 @@
 - Etat partagé protégé par lock réentrant
 - Correction de la variable `prix` inexistante dans le calcul ATR fallback
 - Style graphique inspiré de Q-terminal : fond sombre quadrillé, panneaux fins, accents vert/cyan/ambre
+- Affichage professionnel : KPIs, console de pilotage, statuts opérationnels et labels sobres
 - VWAP reset quotidien par session NY
 - Lookback swing réduit (n=2 vs n=3)
 - BOS confirmation 2 bougies

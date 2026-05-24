@@ -76,6 +76,10 @@ def inject_qterminal_style():
         [data-testid="stToolbar"] button {{
             color: var(--qt-muted);
         }}
+        [data-testid="stAppDeployButton"],
+        #MainMenu {{
+            display: none;
+        }}
         @keyframes qtFadeIn {{
             from {{ opacity: 0; transform: translateY(6px); }}
             to {{ opacity: 1; transform: translateY(0); }}
@@ -90,10 +94,16 @@ def inject_qterminal_style():
             background:
                 linear-gradient(90deg, rgba(32, 227, 162, 0.10), transparent 28%),
                 linear-gradient(135deg, rgba(11, 16, 22, 0.98), rgba(13, 19, 28, 0.92));
-            padding: 20px 20px 18px 20px;
+            padding: 20px;
             margin: -2px 0 14px 0;
             overflow: hidden;
             box-shadow: 0 18px 42px rgba(0, 0, 0, 0.20), inset 0 1px 0 rgba(255, 255, 255, 0.035);
+        }}
+        .qt-hero-grid {{
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 360px;
+            gap: 20px;
+            align-items: end;
         }}
         .qt-page-header::after {{
             content: "";
@@ -126,6 +136,38 @@ def inject_qterminal_style():
             max-width: 880px;
             font-size: 0.96rem;
             line-height: 1.48;
+        }}
+        .qt-hero-meta {{
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }}
+        .qt-hero-stat {{
+            border: 1px solid rgba(139, 152, 168, 0.20);
+            border-radius: 8px;
+            background: rgba(12, 17, 24, 0.72);
+            padding: 12px;
+        }}
+        .qt-hero-stat span {{
+            display: block;
+            color: var(--qt-muted);
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }}
+        .qt-hero-stat strong {{
+            display: block;
+            color: var(--qt-text);
+            font-size: 1.45rem;
+            line-height: 1.1;
+            margin-top: 6px;
+        }}
+        .qt-hero-stat em {{
+            display: block;
+            color: var(--qt-muted);
+            font-size: 0.78rem;
+            font-style: normal;
+            margin-top: 4px;
         }}
         .qt-status-row {{
             display: flex;
@@ -160,9 +202,62 @@ def inject_qterminal_style():
             background:
                 linear-gradient(145deg, rgba(45, 212, 255, 0.035), transparent 36%),
                 rgba(15, 21, 31, 0.92);
-            padding: 14px 14px 6px 14px;
+            padding: 14px;
             margin-bottom: 14px;
             box-shadow: 0 14px 36px rgba(0, 0, 0, 0.18);
+        }}
+        .qt-control-title,
+        .qt-section-heading {{
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: baseline;
+            margin: 18px 0 10px 0;
+        }}
+        .qt-control-title strong,
+        .qt-section-heading strong {{
+            color: var(--qt-text);
+            font-size: 1.05rem;
+            font-weight: 760;
+        }}
+        .qt-control-title span,
+        .qt-section-heading span {{
+            color: var(--qt-muted);
+            font-size: 0.82rem;
+        }}
+        .qt-status-grid {{
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+            margin: 12px 0 18px 0;
+        }}
+        .qt-status-card {{
+            border: 1px solid rgba(139, 152, 168, 0.18);
+            border-radius: 8px;
+            background:
+                linear-gradient(135deg, rgba(45, 212, 255, 0.035), transparent 40%),
+                rgba(16, 21, 29, 0.82);
+            padding: 12px;
+        }}
+        .qt-status-card span {{
+            color: var(--qt-muted);
+            display: block;
+            font-size: 0.72rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }}
+        .qt-status-card strong {{
+            color: var(--qt-text);
+            display: block;
+            font-size: 1.35rem;
+            margin-top: 6px;
+        }}
+        .qt-status-card em {{
+            color: var(--qt-muted);
+            display: block;
+            font-size: 0.78rem;
+            font-style: normal;
+            margin-top: 4px;
         }}
         div[data-testid="stVerticalBlockBorderWrapper"],
         div[data-testid="stDataFrame"], .stPlotlyChart {{
@@ -241,6 +336,11 @@ def inject_qterminal_style():
             }}
             .qt-page-header h1 {{
                 font-size: 1.8rem;
+            }}
+            .qt-hero-grid,
+            .qt-hero-meta,
+            .qt-status-grid {{
+                grid-template-columns: 1fr;
             }}
             .stPlotlyChart {{
                 padding: 4px;
@@ -995,19 +1095,51 @@ def start_background_threads():
 # ============================================================
 start_background_threads()
 
+with state.lock:
+    signal_count = len(state.trade_queue)
+    pending_count = len(state.pending_orders)
+    executed_count = len(state.auto_executed)
+    active_stream = state.stream_started
+
 st.markdown(
     f"""
     <section class="qt-page-header">
-        <div class="qt-kicker">Live market terminal / SMC radar</div>
-        <h1>ScalpBot Pro</h1>
-        <p>
-            Radar multi-timeframe pour signaux SMC, confluences EMA/VWAP, zones OB/FVG
-            et execution Alpaca paper avec garde-fous de risque.
-        </p>
-        <div class="qt-status-row">
-            <span class="qt-pill ok">Paper trading</span>
-            <span class="qt-pill">{len(SYMBOLES)} symboles surveilles</span>
-            <span class="qt-pill warn">Auto-trade verrouillable</span>
+        <div class="qt-hero-grid">
+            <div>
+                <div class="qt-kicker">Trading operations console</div>
+                <h1>ScalpBot Pro</h1>
+                <p>
+                    Surveillance multi-timeframe des confluences SMC, suivi EMA/VWAP,
+                    zones institutionnelles et execution Alpaca paper avec garde-fous.
+                </p>
+                <div class="qt-status-row">
+                    <span class="qt-pill ok">Paper trading</span>
+                    <span class="qt-pill">{len(SYMBOLES)} instruments</span>
+                    <span class="qt-pill warn">Auto-trade controle</span>
+                </div>
+            </div>
+            <div class="qt-hero-meta">
+                <div class="qt-hero-stat">
+                    <span>Flux</span>
+                    <strong>{"Actif" if active_stream else "Arrete"}</strong>
+                    <em>WebSocket Alpaca IEX</em>
+                </div>
+                <div class="qt-hero-stat">
+                    <span>Signaux</span>
+                    <strong>{signal_count}</strong>
+                    <em>File active</em>
+                </div>
+                <div class="qt-hero-stat">
+                    <span>Ordres</span>
+                    <strong>{pending_count}</strong>
+                    <em>Limites en attente</em>
+                </div>
+                <div class="qt-hero-stat">
+                    <span>Historique</span>
+                    <strong>{executed_count}</strong>
+                    <em>Executions suivies</em>
+                </div>
+            </div>
         </div>
     </section>
     """,
@@ -1015,11 +1147,21 @@ st.markdown(
 )
 
 # ── Auto-Trade ───────────────────────────────────────────────
+st.markdown(
+    """
+    <div class="qt-control-title">
+        <strong>Parametres d'execution</strong>
+        <span>Validation manuelle par defaut, seuil configurable pour le mode automatique.</span>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
 with st.container():
     c1, c2, c3 = st.columns([2, 2, 4])
     with c1:
         auto_on = st.toggle(
-            "🤖 Auto-Trade",
+            "Auto-trade",
             value=st.session_state.get("auto_trade_on", False),
             key="auto_trade_on",
             help="Exécution automatique dès que le score dépasse le seuil"
@@ -1035,9 +1177,37 @@ with st.container():
         state.auto_seuil = int(auto_seuil)
     with c3:
         if auto_on:
-            st.error(f"🔴 AUTO-TRADE ACTIF — exécution automatique dès score ≥ {auto_seuil}/10")
+            st.error(f"Auto-trade actif : execution automatique des signaux score >= {auto_seuil}/10")
         else:
-            st.info("⚪ Mode manuel — tu valides chaque trade")
+            st.info("Mode manuel : chaque trade doit etre valide avant execution")
+
+st.markdown(
+    f"""
+    <div class="qt-status-grid">
+        <div class="qt-status-card">
+            <span>Symboles</span>
+            <strong>{len(SYMBOLES)}</strong>
+            <em>QQQ, SPY, GLD, SLV, NVDA, AMD, TSLA, AAPL</em>
+        </div>
+        <div class="qt-status-card">
+            <span>Seuil auto</span>
+            <strong>{auto_seuil}/10</strong>
+            <em>{"Arme" if auto_on else "Inactif"}</em>
+        </div>
+        <div class="qt-status-card">
+            <span>Risque max</span>
+            <strong>{MAX_RISK_FRACTION * 100:.1f}%</strong>
+            <em>Par opportunite</em>
+        </div>
+        <div class="qt-status-card">
+            <span>Notional max</span>
+            <strong>{MAX_ORDER_NOTIONAL:,.0f}$</strong>
+            <em>Plafond d'ordre</em>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 # ── Historique auto-trades ────────────────────────────────────
 with state.lock:
@@ -1047,7 +1217,7 @@ with state.lock:
 if auto_history:
     with st.expander(f"📋 Historique auto-trades ({auto_history_count})", expanded=False):
         for t in auto_history:
-            icon = "✅" if t.get("ok") else "❌"
+            icon = "OK" if t.get("ok") else "ERR"
             st.markdown(
                 f"{icon} `{t['time']}` **{t['symbole']}** score {t['score']}/10 "
                 f"— {t.get('result', '')}"
@@ -1060,26 +1230,34 @@ def tableau_de_bord():
         trades = list(state.trade_queue[:5])
 
     if trades:
-        st.subheader("🚨 Signaux de haute probabilité")
+        st.markdown(
+            """
+            <div class="qt-section-heading">
+                <strong>Signaux de haute probabilite</strong>
+                <span>Opportunites classees par score de confluence.</span>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
         for trade in trades:
             score     = trade.get("score", 0)
-            score_col = "🟢" if score >= 7 else "🟡"
-            auto_tag  = " 🤖 *auto-exécuté*" if trade.get("auto") else ""
+            score_col = "HIGH" if score >= 7 else "WATCH"
+            auto_tag  = " | auto-execute" if trade.get("auto") else ""
             with st.expander(
                 f"{trade['icone']} **{trade['type']}** sur **{trade['symbole']}** "
-                f"à {trade['time']}  {score_col} {score}/10{auto_tag}",
+                f"a {trade['time']}  [{score_col}] {score}/10{auto_tag}",
                 expanded=score >= 7 and not trade.get("auto")
             ):
                 for r in trade.get("raisons", []):
                     st.markdown(f"&nbsp;&nbsp;• {r}")
                 if not trade.get("auto"):
                     col1, col2 = st.columns([1, 1])
-                    if col1.button(f"🚀 Exécuter {trade['symbole']}",
+                    if col1.button(f"Executer {trade['symbole']}",
                                    key=f"btn_{trade['time']}_{trade['symbole']}",
                                    use_container_width=True):
                         ok, msg = executer_ordre(trade)
                         st.success(msg) if ok else st.error(msg)
-                    if col2.button("🗑️ Ignorer",
+                    if col2.button("Ignorer",
                                    key=f"ign_{trade['time']}_{trade['symbole']}",
                                    use_container_width=True):
                         with state.lock:
@@ -1089,9 +1267,17 @@ def tableau_de_bord():
                 else:
                     st.success(trade.get("auto_result", ""))
     else:
-        st.info("🔍 En attente de données — marché calme ou hors session...")
+        st.info("En attente de donnees : marche calme, flux en initialisation ou session fermee.")
 
-    st.subheader("📊 Price Action multi-timeframe (M5 / M1)")
+    st.markdown(
+        """
+        <div class="qt-section-heading">
+            <strong>Price action multi-timeframe</strong>
+            <span>Vue M5 / M1 avec VWAP, zones OB/FVG, volume et score.</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
     for i in range(0, len(SYMBOLES), 2):
         cols = st.columns(2)
         for j in range(2):
@@ -1103,6 +1289,6 @@ def tableau_de_bord():
                         st.plotly_chart(fig, use_container_width=True,
                                         config={"displayModeBar": False})
                     else:
-                        st.info(f"⏳ En attente de données pour {sym}...")
+                        st.info(f"Flux en attente pour {sym}.")
 
 tableau_de_bord()
