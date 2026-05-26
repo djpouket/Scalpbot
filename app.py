@@ -457,6 +457,7 @@ def calc_indicators(df):
     df["EMA20"] = df["Close"].ewm(span=20, adjust=False).mean()
     df["EMA50"] = df["Close"].ewm(span=50, adjust=False).mean()
 
+    # ── FIX 1 : VWAP reset quotidien ────────────────────────
     if "Date" in df.columns:
         df["_date"] = pd.to_datetime(df["Date"]).dt.date
         typical     = (df["High"] + df["Low"] + df["Close"]) / 3
@@ -499,6 +500,7 @@ def agreger_m5(sym):
 # 4. MOTEUR SMC
 # ============================================================
 def detecter_swing(df, n=2):
+    """FIX 2 : lookback réduit à 2 (moins de lag)."""
     highs, lows = [], []
     for i in range(n, len(df) - n):
         if df["High"].iloc[i] == df["High"].iloc[i-n:i+n+1].max():
@@ -508,6 +510,10 @@ def detecter_swing(df, n=2):
     return highs, lows
 
 def detecter_order_blocks(df, direction=None):
+    """
+    FIX 3 : filtre par direction.
+    FIX 4 : invalidation si prix a traversé la zone après formation.
+    """
     obs = []
     if "ATR" not in df.columns or df["ATR"].isna().all():
         return obs
@@ -517,14 +523,18 @@ def detecter_order_blocks(df, direction=None):
         prev = df.iloc[i - 1]
         curr = df.iloc[i]
         body = abs(curr["Close"] - curr["Open"])
+        # Seuil abaissé à 1.0× ATR (était 1.5×) pour ne pas rater
+        # les OBs formés par un mouvement fluide sans bougie explosive
         disp = body > atr * 1.0
 
+        # OB Haussier
         if disp and prev["Close"] < prev["Open"] and curr["Close"] > prev["High"]:
             ob = {"type": "bullish", "top": prev["High"], "bottom": prev["Low"],
                   "date": prev["Date"], "index": i - 1}
             if not (df["Close"].iloc[i+1:] < ob["bottom"]).any():
                 obs.append(ob)
 
+        # OB Baissier
         if disp and prev["Close"] > prev["Open"] and curr["Close"] < prev["Low"]:
             ob = {"type": "bearish", "top": prev["High"], "bottom": prev["Low"],
                   "date": prev["Date"], "index": i - 1}
@@ -537,6 +547,7 @@ def detecter_order_blocks(df, direction=None):
     return recent[-4:]
 
 def detecter_fvg(df, direction=None):
+    """FIX 3 : filtre optionnel par direction."""
     fvgs = []
     for i in range(2, len(df)):
         if df["Low"].iloc[i] > df["High"].iloc[i - 2]:
@@ -551,6 +562,9 @@ def detecter_fvg(df, direction=None):
     return recent[-3:]
 
 def detecter_bos_choch(df):
+    """
+    FIX 2b : confirmation 2 bougies pour éviter faux positifs.
+    """
     highs, lows = detecter_swing(df)
     events = []
     if len(highs) < 2 or len(lows) < 2:
@@ -564,11 +578,13 @@ def detecter_bos_choch(df):
     last      = df.iloc[-1]
     prev_last = df.iloc[-2]
 
+    # Tendance haussière
     if last_sh > prev_sh and last_sl > prev_sl:
         if last["Close"] > last_sh and prev_last["Close"] <= last_sh:
             events.append({"type": "BOS",   "direction": "bullish", "price": last_sh, "date": last["Date"]})
         elif last["Close"] < last_sl and prev_last["Close"] >= last_sl:
             events.append({"type": "CHoCH", "direction": "bearish", "price": last_sl, "date": last["Date"]})
+    # Tendance baissière
     elif last_sh < prev_sh and last_sl < prev_sl:
         if last["Close"] < last_sl and prev_last["Close"] >= last_sl:
             events.append({"type": "BOS",   "direction": "bearish", "price": last_sl, "date": last["Date"]})
@@ -577,6 +593,10 @@ def detecter_bos_choch(df):
     return events
 
 def score_confluence(sym):
+    """
+    FIX 5 : score directionnel — FVG/OB/BOS ne comptent que
+    s'ils sont alignés avec le biais de tendance.
+    """
     with state.lock:
         bars_m1 = list(state.bars_m1[sym])
         bars_m5 = list(state.bars_m5[sym])
@@ -593,6 +613,7 @@ def score_confluence(sym):
     last1 = df1.iloc[-1]
     last5 = df5.iloc[-1]
 
+    # ── Tendance M5 ──────────────────────────────────────────
     if last5["EMA9"] > last5["EMA20"] > last5["EMA50"]:
         score += 2; raisons.append("📈 Tendance M5 haussière (EMA9>20>50)"); direction = "bullish"
     elif last5["EMA9"] < last5["EMA20"] < last5["EMA50"]:
@@ -600,22 +621,26 @@ def score_confluence(sym):
     else:
         return 0, ["⚪ EMAs M5 entremêlées — pas de biais clair"], None
 
+    # ── VWAP M1 ─────────────────────────────────────────────
     if direction == "bullish" and last1["Close"] > last1["VWAP"]:
         score += 1; raisons.append("💧 Prix au-dessus VWAP M1")
     elif direction == "bearish" and last1["Close"] < last1["VWAP"]:
         score += 1; raisons.append("💧 Prix en-dessous VWAP M1")
 
+    # ── OB M5 (filtrés par direction) ───────────────────────
     obs5 = detecter_order_blocks(df5, direction=direction)
     for ob in obs5:
         if ob["bottom"] <= last1["Close"] <= ob["top"]:
             score += 2
             raisons.append(f"🏦 Prix dans OB {ob['type']} M5 ({ob['bottom']:.2f}-{ob['top']:.2f})")
 
+    # ── FVG M1 (filtrés par direction) ──────────────────────
     fvgs = detecter_fvg(df1, direction=direction)
     for fvg in fvgs:
         if fvg["bottom"] <= last1["Close"] <= fvg["top"]:
             score += 1; raisons.append("⚡ Prix dans FVG M1 aligné")
 
+    # ── BOS / CHoCH M5 (alignés avec direction) ─────────────
     events5 = detecter_bos_choch(df5)
     for ev in events5:
         if ev["direction"] == direction:
@@ -624,6 +649,7 @@ def score_confluence(sym):
             elif ev["type"] == "CHoCH":
                 score += 2; raisons.append(f"🔄 CHoCH {ev['direction']} M5 @ {ev['price']:.2f}")
 
+    # ── Filtre volatilité ATR ────────────────────────────────
     if last1["ATR"] < 0.05:
         score = max(0, score - 1)
 
@@ -657,6 +683,7 @@ def process_bar(sym, o, h, l, c, v, ts):
         state.cum_vol[sym] += v
         state.vwap[sym]     = state.cum_pv[sym] / state.cum_vol[sym] if state.cum_vol[sym] else 0
 
+        # Supabase optionnel
         if sb:
             try:
                 sb.table("prix_history").insert(
@@ -667,6 +694,7 @@ def process_bar(sym, o, h, l, c, v, ts):
 
         score, raisons, direction = score_confluence(sym)
         if score >= 5 and raisons:
+            # ── SL/TP dynamiques basés sur ATR et OB ────────────
             bars = list(state.bars_m1[sym])
             df_sig = calc_indicators(bars_to_df(bars)) if len(bars) >= 14 else None
 
@@ -676,11 +704,13 @@ def process_bar(sym, o, h, l, c, v, ts):
             if not np.isfinite(atr_val) or atr_val <= 0:
                 atr_val = max(last_close * 0.005, 0.01)
 
-            limit_entry = last_close
+            # Cherche un OB proche pour ancrer le SL
+            limit_entry = last_close  # entrée par défaut = prix actuel
             if df_sig is not None:
                 obs_sig = detecter_order_blocks(df_sig, direction=dir_sig)
                 fvg_sig = detecter_fvg(df_sig, direction=dir_sig)
 
+                # Priorité FVG > OB pour l'entrée limit
                 zone = None
                 if fvg_sig:
                     zone = fvg_sig[-1]
@@ -688,7 +718,10 @@ def process_bar(sym, o, h, l, c, v, ts):
                     zone = obs_sig[-1]
 
                 if zone:
+                    # Entrée au milieu de la zone
                     limit_entry = round((zone["top"] + zone["bottom"]) / 2, 2)
+                    
+                    # ✅ CORRECTION ICI : Augmentation du buffer à 1.0 ATR
                     buffer_atr = atr_val * 1.0
                     
                     if dir_sig == "bullish":
@@ -696,6 +729,7 @@ def process_bar(sym, o, h, l, c, v, ts):
                     else:
                         sl_dyn = round(zone["top"]    + buffer_atr, 2)
                 else:
+                    # Pas de zone — SL = dernier swing ± 1.5 ATR
                     if dir_sig == "bullish":
                         sl_dyn = round(last_close - atr_val * 1.5, 2)
                     else:
@@ -734,6 +768,7 @@ def process_bar(sym, o, h, l, c, v, ts):
             else:
                 state.trade_queue[existing_idx] = sig
 
+            # Auto-trade
             auto_on    = state.auto_trade_on
             auto_seuil = state.auto_seuil
             if auto_on and score >= auto_seuil:
@@ -806,6 +841,7 @@ def build_chart(sym):
         )
     )
 
+    # ── M5 ──────────────────────────────────────────────────
     obs5  = detecter_order_blocks(df5)
     fvg5  = detecter_fvg(df5)
     ev5   = detecter_bos_choch(df5)
@@ -846,6 +882,7 @@ def build_chart(sym):
                       annotation_text=ev["type"],
                       annotation_font=dict(color=col_ev, size=9))
 
+    # ── M1 ──────────────────────────────────────────────────
     fig.add_trace(go.Candlestick(
         x=df1["Date"], open=df1["Open"], high=df1["High"],
         low=df1["Low"], close=df1["Close"],
@@ -864,6 +901,7 @@ def build_chart(sym):
             line_width=0, row=2, col=1
         )
 
+    # ── Volume ───────────────────────────────────────────────
     vol_colors = [
         "rgba(32,227,162,0.62)" if df1["Close"].iloc[k] >= df1["Open"].iloc[k]
         else "rgba(255,92,92,0.58)"
@@ -872,6 +910,7 @@ def build_chart(sym):
     fig.add_trace(go.Bar(x=df1["Date"], y=df1["Volume"],
                          marker_color=vol_colors, showlegend=False), row=3, col=1)
 
+    # ── Layout ───────────────────────────────────────────────
     score, _, _ = score_confluence(sym)
     score_color = QT_GREEN if score >= 7 else QT_AMBER if score >= 5 else QT_MUTED
     last_close  = df1["Close"].iloc[-1]
@@ -913,6 +952,7 @@ def executer_ordre(trade: dict):
         except (TypeError, ValueError):
             buying_power = capital
 
+        # ── Niveaux issus du signal (ATR + zone OB/FVG) ─────────
         limit_entry = float(trade.get("limit_entry", trade["entree"]))
         sl_price    = float(trade.get("sl", limit_entry * 0.99))
         tp_price    = float(trade.get("tp", limit_entry * 1.02))
@@ -922,6 +962,7 @@ def executer_ordre(trade: dict):
 
         dist_sl = abs(limit_entry - sl_price)
         
+        # ✅ NOUVEAU GARDE-FOU ICI : Bloquer si le stop est trop serré (ex: moins de 0.15% du prix)
         min_sl_distance = limit_entry * 0.0015
         if dist_sl < min_sl_distance:
             return False, f"Trade rejeté : Le Stop-Loss ({dist_sl:.2f}$) est trop proche de l'entrée."
@@ -935,6 +976,7 @@ def executer_ordre(trade: dict):
         if side == OrderSide.SELL and not (tp_price < limit_entry < sl_price):
             return False, "Bracket vente invalide : TP < entrée < SL requis."
 
+        # Sizing : risque plafonné + notional plafonné pour éviter les tailles explosives.
         risk_fraction = min(max(MAX_RISK_FRACTION, 0.0), 0.05)
         risk_budget = capital * risk_fraction
         notional_cap = min(buying_power, MAX_ORDER_NOTIONAL)
@@ -943,6 +985,7 @@ def executer_ordre(trade: dict):
         if quantite < 1:
             return False, "Capital insuffisant."
 
+        # ── Ordre Limit bracket (pas Market) ────────────────────
         ordre = LimitOrderRequest(
             symbol=trade["symbole"],
             qty=quantite,
@@ -955,6 +998,7 @@ def executer_ordre(trade: dict):
         )
         reponse = trading_client.submit_order(order_data=ordre)
 
+        # ── Enregistrement pour surveillance anti-orphelin ───────
         with state.lock:
             state.pending_orders.append({
                 "order_id":     str(reponse.id),
@@ -975,9 +1019,14 @@ def executer_ordre(trade: dict):
 # ============================================================
 # 7b. SURVEILLANCE ORDRES ORPHELINS
 # ============================================================
-ORPHAN_MINUTES = 15
+ORPHAN_MINUTES = 15   # annulation si non rempli après N bougies M1
 
 def orphan_watcher():
+    """
+    Tourne en arrière-plan toutes les 60s.
+    Annule tout ordre Limit encore 'new' ou 'partially_filled'
+    après ORPHAN_MINUTES minutes.
+    """
     while True:
         time_module.sleep(60)
         now = datetime.now(pytz.timezone("US/Eastern"))
@@ -990,7 +1039,7 @@ def orphan_watcher():
             age_minutes = (now - entry["submitted_at"]).total_seconds() / 60
 
             if age_minutes < ORPHAN_MINUTES:
-                continue
+                continue  # trop tôt
 
             order_id = entry["order_id"]
             try:
@@ -1005,6 +1054,7 @@ def orphan_watcher():
                         f"(non rempli après {ORPHAN_MINUTES} min)"
                     )
                     print(msg)
+                    # Injecte dans auto_executed pour traçabilité UI
                     with state.lock:
                         state.auto_executed.insert(0, {
                             "time":     now.strftime("%H:%M:%S"),
@@ -1015,11 +1065,12 @@ def orphan_watcher():
                             "auto":     True,
                             "auto_result": msg,
                         })
+                # Rempli ou annulé → on le retire dans tous les cas
                 to_remove.append(entry)
 
             except Exception as e:
                 print(f"⚠️ Watcher erreur {order_id}: {e}")
-                to_remove.append(entry)
+                to_remove.append(entry)  # retire quand même pour ne pas boucler
 
         with state.lock:
             for entry in to_remove:
@@ -1105,6 +1156,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# ── Auto-Trade ───────────────────────────────────────────────
 st.markdown(
     """
     <div class="qt-control-title">
@@ -1167,6 +1219,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# ── Historique auto-trades ────────────────────────────────────
 with state.lock:
     auto_history = list(state.auto_executed[:10])
     auto_history_count = len(state.auto_executed)
@@ -1180,6 +1233,7 @@ if auto_history:
                 f"— {t.get('result', '')}"
             )
 
+# ── Dashboard live ───────────────────────────────────────────
 @st.fragment(run_every="1s")
 def tableau_de_bord():
     with state.lock:
@@ -1208,11 +1262,15 @@ def tableau_de_bord():
                     st.markdown(f"&nbsp;&nbsp;• {r}")
                 if not trade.get("auto"):
                     col1, col2 = st.columns([1, 1])
+                    
+                    # ✅ CORRECTION ICI : Remplacement de use_container_width par width="stretch"
                     if col1.button(f"Executer {trade['symbole']}",
                                    key=f"btn_{trade['time']}_{trade['symbole']}",
                                    width="stretch"):
                         ok, msg = executer_ordre(trade)
                         st.success(msg) if ok else st.error(msg)
+                        
+                    # ✅ CORRECTION ICI : Remplacement de use_container_width par width="stretch"
                     if col2.button("Ignorer",
                                    key=f"ign_{trade['time']}_{trade['symbole']}",
                                    width="stretch"):
@@ -1242,10 +1300,10 @@ def tableau_de_bord():
                 with cols[j]:
                     fig = build_chart(sym)
                     if fig:
+                        # ✅ CORRECTION ICI : Remplacement de use_container_width par width="stretch"
                         st.plotly_chart(fig, width="stretch",
                                         config={"displayModeBar": False})
                     else:
                         st.info(f"Flux en attente pour {sym}.")
 
 tableau_de_bord()
-
