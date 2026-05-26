@@ -720,12 +720,16 @@ def process_bar(sym, o, h, l, c, v, ts):
                 if zone:
                     # Entrée au milieu de la zone
                     limit_entry = round((zone["top"] + zone["bottom"]) / 2, 2)
+                    
+                    # ✅ CORRECTION ICI : Augmentation du buffer à 1.0 ATR
+                    buffer_atr = atr_val * 1.0
+                    
                     if dir_sig == "bullish":
-                        sl_dyn = round(zone["bottom"] - atr_val * 0.1, 2)
+                        sl_dyn = round(zone["bottom"] - buffer_atr, 2)
                     else:
-                        sl_dyn = round(zone["top"]    + atr_val * 0.1, 2)
+                        sl_dyn = round(zone["top"]    + buffer_atr, 2)
                 else:
-                    # Pas de zone — SL = dernier swing ± 0.1 ATR
+                    # Pas de zone — SL = dernier swing ± 1.5 ATR
                     if dir_sig == "bullish":
                         sl_dyn = round(last_close - atr_val * 1.5, 2)
                     else:
@@ -957,6 +961,12 @@ def executer_ordre(trade: dict):
             return False, "Prix d'entrée, SL ou TP invalide."
 
         dist_sl = abs(limit_entry - sl_price)
+        
+        # ✅ NOUVEAU GARDE-FOU ICI : Bloquer si le stop est trop serré (ex: moins de 0.15% du prix)
+        min_sl_distance = limit_entry * 0.0015
+        if dist_sl < min_sl_distance:
+            return False, f"Trade rejeté : Le Stop-Loss ({dist_sl:.2f}$) est trop proche de l'entrée."
+            
         if dist_sl <= 0:
             return False, "Distance SL nulle."
 
